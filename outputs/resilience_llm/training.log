@@ -1,0 +1,13 @@
+2026-01-14 15:01:13,261 - INFO - Starting training - Phase 1
+2026-01-14 15:01:13,262 - INFO - Config: TrainingConfig(output_dir='outputs', experiment_name='resilience_llm', seed=42, num_epochs=3, batch_size=4, gradient_accumulation_steps=4, learning_rate=2e-05, weight_decay=0.01, warmup_ratio=0.1, max_grad_norm=1.0, ranking_loss_type='listmle', ranking_loss_weight=1.0, lm_loss_weight=0.5, phase=1, freeze_llm_in_phase2=False, eval_steps=100, save_steps=500, logging_steps=10, device='cuda', fp16=True, bf16=False, resume_from_checkpoint=None, max_samples=None)
+2026-01-14 15:23:28,190 - INFO - Starting training - Phase 1
+2026-01-14 15:23:28,190 - INFO - Config: TrainingConfig(output_dir='outputs', experiment_name='resilience_llm', seed=42, num_epochs=3, batch_size=4, gradient_accumulation_steps=4, learning_rate=2e-05, weight_decay=0.01, warmup_ratio=0.1, max_grad_norm=1.0, ranking_loss_type='listmle', ranking_loss_weight=1.0, lm_loss_weight=0.5, phase=1, freeze_llm_in_phase2=False, eval_steps=100, save_steps=500, logging_steps=10, device='cuda', fp16=True, bf16=False, resume_from_checkpoint=None, max_samples=None)
+2026-01-14 16:09:10,104 - INFO - Starting training - Phase 1
+2026-01-14 16:09:10,105 - INFO - Config: TrainingConfig(output_dir='outputs', experiment_name='resilience_llm', seed=42, num_epochs=3, batch_size=1, gradient_accumulation_steps=8, learning_rate=2e-05, weight_decay=0.01, warmup_ratio=0.1, max_grad_norm=1.0, ranking_loss_type='listmle', ranking_loss_weight=1.0, lm_loss_weight=0.5, phase=1, freeze_llm_in_phase2=False, eval_steps=100, save_steps=500, logging_steps=10, device='cuda', fp16=True, bf16=False, resume_from_checkpoint=None, max_samples=None)
+2026-01-14 16:20:36,681 - INFO - Epoch 1/3 - Loss: 1.3135
+2026-01-14 16:20:41,024 - INFO - Saved checkpoint to outputs\resilience_llm\checkpoints\epoch_1
+2026-01-14 16:32:09,320 - INFO - Epoch 2/3 - Loss: 0.6701
+2026-01-14 16:32:13,807 - INFO - Saved checkpoint to outputs\resilience_llm\checkpoints\epoch_2
+2026-01-14 16:43:39,606 - INFO - Epoch 3/3 - Loss: nan
+2026-01-14 16:43:43,997 - INFO - Saved checkpoint to outputs\resilience_llm\checkpoints\epoch_3
+2026-01-14 16:43:43,997 - INFO - Training completed!

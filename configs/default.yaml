@@ -1,0 +1,172 @@
+# ============================================================
+# 网络韧性优化框架 - 默认配置文件
+# Neural-Symbolic Network Resilience Optimization Framework
+# ============================================================
+
+# 项目元信息
+project:
+  name: "resilience-llm"
+  version: "0.1.0"
+  description: "Neural-Symbolic Framework for Network Resilience Optimization"
+
+# ==================== 数据配置 ====================
+data:
+  # 原始图数据目录
+  raw_graphs_dir: "data/raw_graphs"
+  
+  # 微调数据目录
+  fine_tuning_dir: "data/fine_tuning"
+  
+  # 数据生成参数
+  generation:
+    num_graphs: 100
+    graph_types: ["ba", "er"]  # Barabási-Albert, Erdős-Rényi
+    min_nodes: 50
+    max_nodes: 200
+    budget: 10  # 每个图的操作预算
+    spectral_top_k: 10  # 谱梯度剪枝后保留的候选数
+  
+  # 数据加载参数
+  loading:
+    max_length: 1024  # 减小序列长度以节省显存 (原 2048)
+    cache_tokenization: true
+    train_split: 0.9
+
+# ==================== 模型配置 ====================
+model:
+  # LLM 配置
+  llm:
+    model_name: "Qwen/Qwen2.5-1.5B-Instruct"  # 推荐用于 RTX 3060 12GB 测试
+    # 可选模型（适合 12GB 显存）:
+    # - "Qwen/Qwen2.5-1.5B-Instruct"  (推荐，1.5B参数，~3GB显存)
+    # - "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  (1.1B参数，~2.5GB显存)
+    # - "meta-llama/Meta-Llama-3-8B"  (需要更大显存或量化)
+    # - "THUDM/chatglm3-6b"  (需要量化)
+    
+  # LoRA 配置
+  lora:
+    enabled: true
+    r: 8  # LoRA rank
+    alpha: 32  # LoRA alpha
+    dropout: 0.1
+    target_modules:
+      - "q_proj"
+      - "v_proj"
+      - "k_proj"
+      - "o_proj"
+  
+  # 几何编码器配置 (可选)
+  geometric_encoder:
+    enabled: false
+    type: "gin"  # gin, gat, transformer
+    input_dim: 64
+    hidden_dim: 512
+    output_dim: 1024
+    num_layers: 3
+  
+  # 融合模块配置
+  fusion:
+    type: "gated"  # gated, attention, concat
+    d_model: 1024
+    num_heads: 8
+
+# ==================== 训练配置 ====================
+training:
+  # 基础训练参数
+  num_epochs: 3
+  batch_size: 2  # RTX 3060 12GB 推荐值
+  gradient_accumulation_steps: 4  # 有效批大小 = batch_size * gradient_accumulation_steps = 8
+  
+  # 优化器参数
+  optimizer:
+    type: "adamw"
+    learning_rate: 2.0e-5
+    weight_decay: 0.01
+    warmup_ratio: 0.1
+    max_grad_norm: 1.0
+  
+  # 损失函数配置
+  loss:
+    ranking_type: "listmle"  # listmle, listnet, combined
+    ranking_weight: 1.0
+    lm_weight: 0.5
+    temperature: 1.0
+  
+  # 训练阶段
+  phase: 1  # 1: LLM only (LoRA), 2: Joint training
+  freeze_llm_in_phase2: false
+  
+  # 评估和保存
+  eval_steps: 100
+  save_steps: 500
+  logging_steps: 10
+  
+  # 设备配置
+  device: "cuda"
+  # FP16 混合精度训练（已自动适配原生 FP16 模型）
+  fp16: true
+  bf16: false
+  
+  # 输出目录
+  output_dir: "outputs"
+
+# ==================== 环境模拟配置 ====================
+environment:
+  # 图类型默认参数
+  ba_graph:
+    m: 3  # 每个新节点连接的边数
+  
+  er_graph:
+    p: 0.05  # 边存在概率
+  
+  # 谱梯度剪枝参数
+  spectral_pruning:
+    enabled: true
+    top_k: 50  # 保留的候选数量
+    use_fiedler: true  # 使用 Fiedler 向量
+  
+  # 韧性计算参数
+  resilience:
+    normalize: true
+    metric: "lcc"  # lcc, algebraic_connectivity
+
+# ==================== OCG 配置 ====================
+ocg:
+  # 子图提取参数
+  hop_distance: 1
+  max_neighbors_display: 5
+  
+  # 度数等级阈值
+  degree_thresholds:
+    low: 3
+    high: 8
+  
+  # 输出语言
+  language: "zh"  # zh, en
+
+# ==================== 推理配置 ====================
+inference:
+  # 推理模式
+  mode: "greedy"  # greedy, beam_search, sampling
+  
+  # Beam search 参数
+  beam_size: 5
+  
+  # 采样参数
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  
+  # 批处理
+  batch_size: 1
+  max_new_tokens: 512
+
+# ==================== 日志配置 ====================
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  save_to_file: true
+  log_dir: "logs"
+
+# ==================== 随机种子 ====================
+seed: 42
