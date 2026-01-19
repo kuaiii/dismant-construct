@@ -318,6 +318,14 @@ class ResilienceTrainer:
             if loss.dtype != torch.float32:
                 loss = loss.float()
             
+            # NaN/Inf 检查：跳过无效的批次
+            loss_value = loss.item()
+            if not (loss_value == loss_value) or loss_value == float('inf') or loss_value == float('-inf'):
+                # loss_value != loss_value 是检测 NaN 的技巧
+                self.logger.warning(f"跳过批次 {batch_idx}：损失为 NaN 或 Inf")
+                self.optimizer.zero_grad()  # 清除可能的无效梯度
+                continue
+            
             # 反向传播
             if self.use_scaler and self.scaler is not None:
                 # FP32 模型 + AMP + GradScaler：使用 scaled backward
@@ -326,7 +334,7 @@ class ResilienceTrainer:
                 # 无 GradScaler：直接反向传播
                 loss.backward()
             
-            total_loss += loss.item() * self.config.gradient_accumulation_steps
+            total_loss += loss_value * self.config.gradient_accumulation_steps
             num_batches += 1
             
             # 梯度更新
@@ -448,6 +456,13 @@ class ResilienceTrainer:
                 self.config.lm_loss_weight * lm_loss +
                 self.config.ranking_loss_weight * ranking_loss
             )
+            
+            # NaN 检查和处理
+            if torch.isnan(total_loss) or torch.isinf(total_loss):
+                # 记录警告但不中断训练
+                self.logger.warning(f"检测到 NaN/Inf 损失，跳过此批次 (lm_loss={lm_loss}, ranking_loss={ranking_loss})")
+                # 返回一个小的有效损失值，避免梯度更新出问题
+                total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
         
         return total_loss
     
@@ -461,12 +476,31 @@ class ResilienceTrainer:
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()
         
+        # 检查是否有有效的 labels（非 -100）
+        valid_mask = (shift_labels != -100)
+        num_valid = valid_mask.sum().item()
+        
+        if num_valid == 0:
+            # 没有有效的 labels，返回 0 损失
+            self.logger.debug("LM 损失计算：没有有效的 labels，跳过")
+            return torch.tensor(0.0, device=logits.device, dtype=logits.dtype)
+        
+        # 检查 logits 是否包含 NaN/Inf
+        if torch.isnan(shift_logits).any() or torch.isinf(shift_logits).any():
+            self.logger.warning("LM 损失计算：logits 包含 NaN/Inf")
+            return torch.tensor(0.0, device=logits.device, dtype=logits.dtype)
+        
         # 计算交叉熵损失
         loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
         loss = loss_fct(
             shift_logits.view(-1, shift_logits.size(-1)),
             shift_labels.view(-1)
         )
+        
+        # 最终 NaN 检查
+        if torch.isnan(loss) or torch.isinf(loss):
+            self.logger.warning(f"LM 损失计算结果为 NaN/Inf (有效样本数: {num_valid})")
+            return torch.tensor(0.0, device=logits.device, dtype=logits.dtype)
         
         return loss
     

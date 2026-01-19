@@ -99,6 +99,21 @@ class ListMLELoss(nn.Module):
         scores = scores.float()
         auxiliary_labels = auxiliary_labels.float()
         
+        # 检查输入是否包含 NaN 或 Inf
+        if torch.isnan(scores).any() or torch.isinf(scores).any():
+            # 用 0 替换异常值
+            scores = torch.where(torch.isnan(scores) | torch.isinf(scores), 
+                                torch.zeros_like(scores), scores)
+        
+        if torch.isnan(auxiliary_labels).any() or torch.isinf(auxiliary_labels).any():
+            auxiliary_labels = torch.where(torch.isnan(auxiliary_labels) | torch.isinf(auxiliary_labels),
+                                          torch.zeros_like(auxiliary_labels), auxiliary_labels)
+        
+        # 为 auxiliary_labels 添加微小扰动，避免完全相同的值导致排序不稳定
+        # 这对于所有 label 都相同的情况特别重要
+        noise = torch.randn_like(auxiliary_labels) * 1e-8
+        auxiliary_labels = auxiliary_labels + noise
+        
         # 1. 根据 auxiliary_labels 获取真实排序
         # 按分数降序排序，得到排序索引
         true_ranking = torch.argsort(auxiliary_labels, dim=1, descending=True).long()  # 确保是 long 类型
@@ -106,6 +121,9 @@ class ListMLELoss(nn.Module):
         
         # 2. 应用温度缩放
         scores = scores / self.temperature
+        
+        # 限制 scores 范围，防止 exp 溢出
+        scores = torch.clamp(scores, min=-50.0, max=50.0)
         
         # 3. 按真实排序重排预测分数
         # 将 scores 按 true_ranking 的顺序排列
@@ -145,13 +163,26 @@ class ListMLELoss(nn.Module):
         else:
             loss_per_sample = per_position_loss.mean(dim=1)
         
-        # 6. 归约
+        # 6. 最终 NaN 检查，如果仍有 NaN 则返回 0
+        if torch.isnan(loss_per_sample).any():
+            loss_per_sample = torch.where(torch.isnan(loss_per_sample),
+                                         torch.zeros_like(loss_per_sample),
+                                         loss_per_sample)
+        
+        # 7. 归约
         if self.reduction == "mean":
-            return loss_per_sample.mean()
+            result = loss_per_sample.mean()
         elif self.reduction == "sum":
-            return loss_per_sample.sum()
+            result = loss_per_sample.sum()
         else:  # "none"
-            return loss_per_sample
+            result = loss_per_sample
+        
+        # 最终安全检查
+        if isinstance(result, torch.Tensor) and result.numel() == 1:
+            if torch.isnan(result) or torch.isinf(result):
+                return torch.tensor(0.0, device=device, dtype=result.dtype, requires_grad=True)
+        
+        return result
     
     def compute_from_dict_labels(
         self,

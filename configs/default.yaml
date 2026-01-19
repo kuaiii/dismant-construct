@@ -80,10 +80,10 @@ training:
   # 优化器参数
   optimizer:
     type: "adamw"
-    learning_rate: 2.0e-5
+    learning_rate: 1.0e-5  # 降低学习率以避免 NaN
     weight_decay: 0.01
     warmup_ratio: 0.1
-    max_grad_norm: 1.0
+    max_grad_norm: 0.5  # 更严格的梯度裁剪
   
   # 损失函数配置
   loss:
@@ -103,8 +103,8 @@ training:
   
   # 设备配置
   device: "cuda"
-  # FP16 混合精度训练（已自动适配原生 FP16 模型）
-  fp16: true
+  # FP16 混合精度训练（如遇到 NaN 问题，请设为 false）
+  fp16: false
   bf16: false
   
   # 输出目录

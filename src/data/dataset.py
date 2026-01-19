@@ -286,9 +286,12 @@ class ResilienceDataset(Dataset):
             return_tensors="pt"
         )
         
+        input_ids = encodings["input_ids"].squeeze(0)
+        attention_mask = encodings["attention_mask"].squeeze(0)
+        
         result = {
-            "input_ids": encodings["input_ids"].squeeze(0),
-            "attention_mask": encodings["attention_mask"].squeeze(0),
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
         }
         
         # 构建 labels (用于 Causal LM)
@@ -301,8 +304,26 @@ class ResilienceDataset(Dataset):
         )
         input_length = input_encodings["input_ids"].shape[1]
         
-        labels = result["input_ids"].clone()
-        labels[:input_length] = -100  # 忽略输入部分
+        labels = input_ids.clone()
+        
+        # 1. 忽略输入部分（prompt）
+        labels[:input_length] = -100
+        
+        # 2. 忽略 padding 部分（attention_mask == 0 的位置）
+        labels[attention_mask == 0] = -100
+        
+        # 3. 检查是否有有效的 labels（至少需要一个非 -100 的位置）
+        valid_labels = (labels != -100).sum().item()
+        if valid_labels == 0:
+            # 如果没有有效 labels，保留最后几个 token 作为目标
+            # 这种情况发生在输入太长被截断时
+            # 至少保留 10 个 token 或 10% 的序列长度
+            min_valid = max(10, self.max_length // 10)
+            effective_length = attention_mask.sum().item()
+            start_idx = max(0, effective_length - min_valid)
+            if start_idx < effective_length:
+                labels[start_idx:effective_length] = input_ids[start_idx:effective_length]
+        
         result["labels"] = labels
         
         # 缓存

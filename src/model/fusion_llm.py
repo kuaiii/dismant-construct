@@ -364,16 +364,32 @@ class ResilienceLLM(nn.Module):
         else:
             load_kwargs["device_map"] = None
         
-        # 加载模型
+        # 加载模型，强制使用 FP32 以避免 NaN 问题
+        load_kwargs["dtype"] = torch.float32
+        
         self.llm = AutoModelForCausalLM.from_pretrained(
             self.config.llm_model_name,
             **load_kwargs
         )
         
-        # 确保模型参数是 FP32（混合精度训练需要 FP32 参数）
-        if next(self.llm.parameters()).dtype != torch.float32:
-            print(f"⚠️  模型加载为 {next(self.llm.parameters()).dtype}，转换为 FP32...")
-            self.llm = self.llm.float()
+        # 双重确保：将所有参数转换为 FP32
+        self.llm = self.llm.float()
+        
+        # 验证所有参数都是 FP32
+        non_fp32_params = []
+        for name, param in self.llm.named_parameters():
+            if param.dtype != torch.float32:
+                non_fp32_params.append((name, param.dtype))
+        
+        if non_fp32_params:
+            print(f"⚠️  发现非 FP32 参数，正在转换...")
+            for name, dtype in non_fp32_params[:5]:
+                print(f"    {name}: {dtype}")
+            # 强制转换
+            for param in self.llm.parameters():
+                param.data = param.data.float()
+        else:
+            print("✅ 所有模型参数已转换为 FP32")
         
         # 加载分词器
         self.tokenizer = AutoTokenizer.from_pretrained(

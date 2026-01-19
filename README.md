@@ -16,12 +16,13 @@
 ```
 project_root/
 ├── data/
-│   ├── raw_graphs/           # BA, ER 原始图数据
+│   ├── raw_graphs/           # BA, ER, 真实网络图数据
+│   │   ├── syn/              # 合成网络
+│   │   └── true/             # 真实网络 (Topology Zoo 等)
 │   └── fine_tuning/          # 生成的 JSON 微调数据
-│       └── sample_data.json  # 示例数据
 ├── src/
 │   ├── env/
-│   │   ├── simulator.py      # NetworkEnvironment (图状态管理、谱梯度剪枝)
+│   │   ├── simulator.py      # NetworkEnvironment (图状态管理)
 │   │   └── metrics.py        # R_res 韧性积分计算
 │   ├── data/
 │   │   ├── ocg_builder.py    # OCG 提取和 Prompt 生成
@@ -29,18 +30,40 @@ project_root/
 │   ├── model/
 │   │   ├── fusion_llm.py     # ResilienceLLM 主模型架构
 │   │   └── loss.py           # ListMLELoss 排序损失函数
+│   ├── attack/               # 攻击策略模块
+│   │   ├── base.py           # 攻击基类
+│   │   ├── highest_degree.py # HDA 攻击
+│   │   ├── random_attack.py  # 随机攻击
+│   │   └── llm_attack.py     # LLM 攻击
+│   ├── evaluation/           # 统一评估框架
+│   │   └── unified_evaluator.py  # Dismant & Construct 统一评估器
 │   └── trainer/
 │       └── train.py          # 训练循环和评估
 ├── scripts/
 │   ├── generate_data.py      # 数据生成脚本
-│   └── train.py              # 训练启动脚本
+│   ├── train.py              # 训练启动脚本
+│   ├── unified_evaluate.py   # 统一评估脚本 (NEW)
+│   ├── quick_validate.py     # 快速验证脚本 (NEW)
+│   └── evaluate_attacks.py   # 攻击算法评估
 ├── configs/
 │   └── default.yaml          # 默认配置文件
-├── requirements.txt          # 依赖项
+├── docs/
+│   └── unified_framework_guide.md  # 统一框架指南 (NEW)
+├── requirements.txt
 └── README.md
 ```
 
 ## 🚀 快速开始
+
+### 0. 快速验证（推荐先运行）
+
+```bash
+# 一键验证整个框架（数据生成 -> 评估）
+python scripts/quick_validate.py --skip_training
+
+# 完整验证（包含训练，约 10 分钟）
+python scripts/quick_validate.py
+```
 
 ### 1. 安装依赖
 
@@ -131,23 +154,70 @@ python scripts/train.py \
 
 ```bash
 # Dismantle 任务推理（移除节点以降低韧性）
+# 注意：检查点路径格式为 outputs/<output_dir>/resilience_llm/checkpoints/best
 python scripts/inference.py \
-    --checkpoint outputs/dismantle_model/checkpoints/best \
+    --checkpoint outputs/test_run/resilience_llm/checkpoints/best \
     --graph data/raw_graphs/true/Colt.gml \
     --task dismantle \
     --budget 10
 
 # Construct 任务推理（添加边以提高韧性）
 python scripts/inference.py \
-    --checkpoint outputs/construct_model/checkpoints/best \
+    --checkpoint outputs/construct_model/resilience_llm/checkpoints/best \
     --graph data/raw_graphs/true/Colt.gml \
     --task construct \
     --budget 10
 ```
 
+> ⚠️ **检查点路径说明**:
+> - 训练时 `--output_dir outputs/xxx` 会在 `outputs/xxx/resilience_llm/checkpoints/` 下保存检查点
+> - 推理时需要指定完整路径，如 `outputs/xxx/resilience_llm/checkpoints/best`
+
 > 📖 **详细指南**: 
 > - Dismantle 任务: 参考 `docs/workflow_guide.md`
 > - Construct 任务: 参考 `docs/construct_experiment_guide.md`
+
+### 6. 统一评估
+
+使用统一评估框架同时评估 Dismant 和 Construct 任务：
+
+```bash
+# 评估 Dismant 基线（HDA vs Random）
+python scripts/unified_evaluate.py \
+    --task dismant \
+    --graph data/raw_graphs/true/Colt.gml \
+    --output_dir results/dismant
+
+# 评估 Construct 基线
+python scripts/unified_evaluate.py \
+    --task construct \
+    --graph data/raw_graphs/true/Colt.gml \
+    --edge_budget 10 \
+    --output_dir results/construct
+
+# 完整评估（Dismant + Construct）
+python scripts/unified_evaluate.py \
+    --task both \
+    --graph data/raw_graphs/true/Colt.gml \
+    --output_dir results/full
+
+# 批量评估多个图
+python scripts/unified_evaluate.py \
+    --task both \
+    --graph_dir data/raw_graphs/true \
+    --output_dir results/batch
+```
+
+**评估指标说明**：
+
+| 指标 | 含义 | 适用任务 |
+|------|------|----------|
+| R_res | 韧性积分（LCC曲线下面积） | Dismant (越小越好) |
+| R_tar | 目标攻击（HDA）下的韧性 | Construct (越大越好) |
+| R_ran | 随机攻击下的韧性 | Construct (越大越好) |
+| Collapse Point | 网络崩溃点（LCC<20%） | Dismant |
+
+> 📖 **详细说明**: 参考 [统一框架指南](docs/unified_framework_guide.md)
 
 ## 📊 核心模块说明
 
@@ -342,6 +412,44 @@ environment:
 1. ✅ **ListMLE**: `loss.py` 中实现了基于 `auxiliary_labels` 的排序损失
 2. ✅ **谱梯度剪枝**: `simulator.py` 中预留了 `compute_spectral_gradient` 和 `prune_candidates` 接口
 3. ✅ **OCG 构建**: `ocg_builder.py` 中实现了图状态到 Prompt 文本的转换
+
+## ❓ 常见问题
+
+### 1. 训练损失变成 NaN
+
+**症状**: 训练完成后显示 `最终损失: nan`
+
+**可能原因及解决方案**:
+
+| 原因 | 解决方案 |
+|-----|---------|
+| 学习率过高 | 降低学习率，如 `--lr 1e-5` |
+| 梯度爆炸 | 在配置中减小 `max_grad_norm` (如 0.5) |
+| 数据中存在异常值 | 检查 `auxiliary_labels` 是否包含 NaN/Inf |
+| FP16 精度溢出 | 在配置中设置 `fp16: false` |
+
+> 💡 代码已内置 NaN 检测和恢复机制，会自动跳过无效批次。
+
+### 2. 推理时检查点不存在
+
+**症状**: `FileNotFoundError: 检查点路径不存在`
+
+**解决方案**: 检查点保存在 `<output_dir>/resilience_llm/checkpoints/` 下，请使用完整路径：
+
+```bash
+# 正确示例
+--checkpoint outputs/test_run/resilience_llm/checkpoints/best
+
+# 错误示例（缺少 resilience_llm 子目录）
+--checkpoint outputs/test_run/checkpoints/best
+```
+
+### 3. 显存不足 (OOM)
+
+**解决方案**:
+- 减小批大小: `--batch_size 1`
+- 增加梯度累积: 配置 `gradient_accumulation_steps: 8`
+- 使用更小的模型: 配置 `model_name: "Qwen/Qwen2.5-1.5B-Instruct"`
 
 ## 📝 TODO
 

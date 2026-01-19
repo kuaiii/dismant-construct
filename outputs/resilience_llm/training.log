@@ -11,3 +11,25 @@
 2026-01-14 16:43:39,606 - INFO - Epoch 3/3 - Loss: nan
 2026-01-14 16:43:43,997 - INFO - Saved checkpoint to outputs\resilience_llm\checkpoints\epoch_3
 2026-01-14 16:43:43,997 - INFO - Training completed!
+2026-01-15 16:03:59,610 - INFO - Starting training - Phase 1
+2026-01-15 16:03:59,610 - INFO - Config: TrainingConfig(output_dir='outputs', experiment_name='resilience_llm', seed=42, num_epochs=3, batch_size=2, gradient_accumulation_steps=4, learning_rate=2e-05, weight_decay=0.01, warmup_ratio=0.1, max_grad_norm=1.0, ranking_loss_type='listmle', ranking_loss_weight=1.0, lm_loss_weight=0.5, phase=1, freeze_llm_in_phase2=False, eval_steps=100, save_steps=500, logging_steps=10, device='cuda', fp16=True, bf16=False, resume_from_checkpoint=None, max_samples=None)
+2026-01-15 16:04:02,914 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:03,185 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:03,456 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:03,729 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:04,021 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:04,291 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:04,559 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:04,831 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:05,125 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:05,395 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:05,666 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:05,938 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:06,231 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:06,500 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:06,771 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:07,043 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:07,342 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:07,612 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:07,881 - WARNING - LM 损失计算：logits 包含 NaN/Inf
+2026-01-15 16:04:08,153 - WARNING - LM 损失计算：logits 包含 NaN/Inf
